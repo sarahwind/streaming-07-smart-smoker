@@ -1,18 +1,131 @@
 """
     Sarah Windeknecht
-    February 7, 2023
+    February 28, 2023
     
-    This program continuously listens for messages from the Smart Smoker producer on the foodB queue. 
+    This program continuously listens for messages from the Smart Smoker producer on the foodB queue and uses the Python library to send email alerts. 
 
 """
 
-import pika
-import sys
 from collections import deque
+from email.message import EmailMessage
+import pika
+import pprint
+import smtplib
+import sys
+import tomllib  # requires Python 3.11
 
 # declare variables
 foodB_temp_queue = "03-food-B"
 foodB_deque = deque(maxlen=20)  # limited to 20 items (the 20 most recent readings)
+subject_str = "FOOD B STALL"
+content_str = "FOOD B STALL: Food B temp has changed by 1 degree or less in the last 10 minutes."
+
+# define a function to send email alerts
+def CreateAndSendEmailAlert(email_subject: str, email_body: str):
+  
+    """Read outgoing email info from a TOML config file"""
+
+    with open(".env.toml", "rb") as file_object:
+        secret_dict = tomllib.load(file_object)
+    pprint.pprint(secret_dict)
+
+    # basic information
+
+    host = secret_dict["outgoing_email_host"]
+    port = secret_dict["outgoing_email_port"]
+    outemail = secret_dict["outgoing_email_address"]
+    outpwd = secret_dict["outgoing_email_password"]
+
+    # Create an instance of an EmailMessage
+
+    msg = EmailMessage()
+    msg["From"] = secret_dict["outgoing_email_address"]
+    msg["To"] = secret_dict["outgoing_email_address"]
+    msg["Reply-to"] = secret_dict["outgoing_email_address"]
+    msg["Subject"] = email_subject
+    msg.set_content(email_body)
+
+    print("========================================")
+    print(f"Prepared Email Message: ")
+    print("========================================")
+    print()
+    print(f"{str(msg)}")
+    print("========================================")
+    print()
+
+    # Create an instance of an email server, enable debug messages
+
+    server = smtplib.SMTP(host)
+    server.set_debuglevel(2)
+
+    print("========================================")
+    print(f"SMTP server created: {str(server)}")
+    print("========================================")
+    print()
+
+    try:
+        print()
+        server.connect(host, port)  # 465
+        print("========================================")
+        print(f"Connected: {host, port}")
+        print("So far so good - will attempt to start TLS")
+        print("========================================")
+        print()
+
+        server.starttls()
+        print("========================================")
+        print(f"TLS started. Will attempt to login.")
+        print("========================================")
+        print()
+
+        try:
+            server.login(outemail, outpwd)
+            print("========================================")
+            print(f"Successfully logged in as {outemail}.")
+            print("========================================")
+            print()
+
+        except smtplib.SMTPHeloError:
+            print("The server did not reply properly to the HELO greeting.")
+            exit()
+        except smtplib.SMTPAuthenticationError:
+            print("The server did not accept the username/password combination.")
+            exit()
+        except smtplib.SMTPNotSupportedError:
+            print("The AUTH command is not supported by the server.")
+            exit()
+        except smtplib.SMTPException:
+            print("No suitable authentication method was found.")
+            exit()
+        except Exception as e:
+            print(f"Login error. {str(e)}")
+            exit()
+
+        try:
+            server.send_message(msg)
+            print("========================================")
+            print(f"Message sent.")
+            print("========================================")
+            print()
+        except Exception as e:
+            print()
+            print(f"ERROR: {str(e)}")
+        finally:
+            server.quit()
+            print("========================================")
+            print(f"Session terminated.")
+            print("========================================")
+            print()
+
+    # Except if we get an Exception (we call e)
+
+    except ConnectionRefusedError as e:
+        print(f"Error connecting. {str(e)}")
+        print()
+
+    except smtplib.SMTPConnectError as e:
+        print(f"SMTP connect error. {str(e)}")
+        print()
 
 # define a callback function to be called when a message is received
 def foodB_callback(ch, method, properties, body):
@@ -32,6 +145,9 @@ def foodB_callback(ch, method, properties, body):
         # if the temp has changed by 1 degree or less in 10 minutes, then an alert is sent
         if foodB_temp_check <= 1:
             print("FOOD STALL: Current food B temp is:", foodBtemp[0],";", "Food B temp change in last 10 minutes is:", foodB_temp_check, "degrees")
+            # send user an email alert
+            CreateAndSendEmailAlert(subject_str, content_str)
+        
         # let user know current temp
         else:
             print("Current food B temp is:", foodBtemp[0])

@@ -106,7 +106,7 @@ def main(host: str):
                     pass
             
                     # read values every half minute
-                time.sleep(30)
+                time.sleep(1)
 
         except pika.exceptions.AMQPConnectionError as e:
             print(f"Error: Connection to RabbitMQ server failed: {e}")

@@ -24,6 +24,8 @@ FOOD STALL: Either food temperature changes by 1 degree F or less in 10 minutes 
 
 The user is alerted when a significant occurs.
 
+The user is also sent an email for each alert.
+
 ## Prerequisites
 
 RabbitMQ server running
@@ -43,17 +45,9 @@ To open the RabbitMQ Admin page, set show_offer = "False", or set show_offer = "
 
 See a running example with 4 concurrent process windows:
 
-![Sarah Windeknecht Screenshot](4-concurrent-events.png)
+![Sarah Windeknecht Screenshot](concurrent-processes.png)
 
-See a significant event example for the smoker, with timestamp:
+See emails received for each queue:
 
-![Sarah Windeknecht Screenshot](smoker-sigevent.png)
-
-See significant event examples for foods A and B, with timestamps:
-
-![Sarah Windeknecht Screenshot](A-B-sigevent.png)
-
-An interesting part of the RabbitMQ console:
-
-![Sarah Windeknecht Screenshot](rabbit.png)
+![Sarah Windeknecht Screenshot](emails.png)
 
